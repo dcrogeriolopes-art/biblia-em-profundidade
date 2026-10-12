@@ -43,19 +43,26 @@ jobs:
         with:
           gradle-version: '9.5.0'
 
-      - name: Conferir Android SDK do runner
+      - name: Localizar sdkmanager
         shell: bash
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          command -v sdkmanager
-          sdkmanager --version
+          SDKMANAGER_PATH="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
+          if [ -z "$SDKMANAGER_PATH" ]; then
+            echo "::error::sdkmanager não encontrado dentro de $ANDROID_SDK_ROOT/cmdline-tools"
+            find "$ANDROID_SDK_ROOT" -maxdepth 4 -type f -name sdkmanager -print || true
+            exit 1
+          fi
+          chmod +x "$SDKMANAGER_PATH"
+          echo "SDKMANAGER=$SDKMANAGER_PATH" >> "$GITHUB_ENV"
+          "$SDKMANAGER_PATH" --version
 
       - name: Instalar Android 16 / API 36
         shell: bash
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Validar segredos de assinatura
         shell: bash
